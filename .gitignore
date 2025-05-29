@@ -31,3 +31,6 @@ dist/
 
 # Exclude all .pt files (PyTorch model files)
 *.pt
+
+# Exclude the data directory
+data/
