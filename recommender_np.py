@@ -78,7 +78,7 @@ class MovieDataset(Dataset):
             - 'zip_code': The zip code of the user.
     """
     def __init__(self, path):
-        self.dataset = torch.load(path, weights_only=True)
+        self.dataset = torch.load(path)
 
 
     def __len__(self):
