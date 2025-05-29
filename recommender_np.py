@@ -78,7 +78,7 @@ class MovieDataset(Dataset):
             - 'zip_code': The zip code of the user.
     """
     def __init__(self, path):
-        self.dataset = torch.load(path)
+        self.dataset = torch.load(path, weights_only=True)
 
 
     def __len__(self):
@@ -219,11 +219,11 @@ def main():
     n_movies = metadata['n_movies']
 
     # Define experimental configs
-    learning_rates = [0.01, 0.005]
+    learning_rates = [0.05, 0.01, 0.005]
     weight_decays = [1e-4, 1e-5, 1e-6]
     experiments = list(product(learning_rates, weight_decays))
 
-    num_epochs = 15
+    num_epochs = 25
     criterion = nn.MSELoss()
 
     for i, (learning_rate, weight_decay) in enumerate(experiments):
