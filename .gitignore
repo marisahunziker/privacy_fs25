@@ -3,6 +3,7 @@
 *.tmp
 *.swp
 *.bak
+*.sh
 .DS_Store
 Thumbs.db
 
