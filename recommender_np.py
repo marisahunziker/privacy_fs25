@@ -226,9 +226,9 @@ def main():
     val_dataset = MovieDataset('datasets/val_dataset.pt')
     test_dataset = MovieDataset('datasets/test_dataset.pt')
 
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
 
     metadata = torch.load('datasets/metadata.pt')
     n_users = metadata['n_users']
