@@ -101,8 +101,9 @@ class MovieDataset(Dataset):
 
 
 
-def train(model, train_loader, val_loader, criterion, optimizer,
-          model_path, losses_path, num_epochs=10):
+def train(model, train_loader, val_loader, test_loader,
+        criterion, optimizer, experiment_id,
+        model_base_path, losses_base_path, metrics_base_path, num_epochs=10):
     
     train_losses = []
     val_losses = []
@@ -158,14 +159,29 @@ def train(model, train_loader, val_loader, criterion, optimizer,
         print(f"Epoch {epoch + 1}/{num_epochs} | "
               f"Train Loss: {avg_train_loss:.6f} | "
               f"Validation Loss: {avg_val_loss:.6f}")
+        
+        if (epoch + 1) >= 20 and (epoch + 1) % 5 == 0:
+            checkpoint_model_path = f"{model_base_path}_epoch{epoch+1}.pt"
+            checkpoint_losses_path = f"{losses_base_path}_epoch{epoch+1}.pt"
+            checkpoint_metrics_path = f"{metrics_base_path}_epoch{epoch+1}.pt"
 
-    # Save model and losses
-    torch.save(model.state_dict(), model_path)
-    torch.save({'train_loss': train_losses, 'val_loss': val_losses}, losses_path)
+            torch.save(model.state_dict(), checkpoint_model_path)
+            torch.save({'train_loss': train_losses, 'val_loss': val_losses}, checkpoint_losses_path)
 
-    # Save metrics
-    print(f"Saved model to {model_path}")
-    print(f"Saved losses to {losses_path}")
+            # Evaluate and save metrics
+            mse, mae, rmse = evaluate(model, test_loader)
+            metrics = {
+                'experiment': experiment_id,
+                'epoch': epoch + 1,
+                'mse': mse,
+                'mae': mae,
+                'rmse': rmse,
+            }
+            torch.save(metrics, checkpoint_metrics_path)
+
+            print(f"Checkpoint saved at epoch {epoch+1}: {checkpoint_model_path}")
+
+    
 
 
 
@@ -219,11 +235,11 @@ def main():
     n_movies = metadata['n_movies']
 
     # Define experimental configs
-    learning_rates = [0.05, 0.01, 0.005]
+    learning_rates = [0.01, 0.005, 0.001]
     weight_decays = [1e-4, 1e-5, 1e-6]
     experiments = list(product(learning_rates, weight_decays))
 
-    num_epochs = 25
+    num_epochs = 50
     criterion = nn.MSELoss()
 
     for i, (learning_rate, weight_decay) in enumerate(experiments):
@@ -233,30 +249,13 @@ def main():
         model = MatrixFactorizationModel(n_users=n_users, n_movies=n_movies).to(device)
         optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
-        model_path = f'models/np/model_np_{i+1}.pt'
-        losses_path = f'losses/np/losses_np_{i+1}.pt'
-        metrics_path = f'metrics/np/metrics_np_{i+1}.pt'
+        model_path = f'models/np/model_np_{i+1}'
+        losses_path = f'losses/np/losses_np_{i+1}'
+        metrics_path = f'metrics/np/metrics_np_{i+1}'
 
         print("Starting training...")
-        train(model, train_loader, val_loader, criterion, optimizer, model_path, losses_path, num_epochs=num_epochs)
+        train(model, train_loader, val_loader, test_loader, criterion, optimizer, i + 1, model_path, losses_path, metrics_path, num_epochs=num_epochs)
 
-        print("Evaluating model...")
-        mse, mae, rmse = evaluate(model, test_loader)
-
-        print(f"Evaluation results - MSE: {mse:.4f}, MAE: {mae:.4f}, RMSE: {rmse:.4f}")
-
-        metrics = {
-            'experiment': i + 1,
-            'num_epochs': num_epochs,
-            'learning_rate': learning_rate,
-            'weight_decay': weight_decay,
-            'mse': mse,
-            'mae': mae,
-            'rmse': rmse,
-        }
-
-        torch.save(metrics, metrics_path)
-        print(f"Saved results to {metrics_path}")
 
     print("\nAll experiments completed.")
 
