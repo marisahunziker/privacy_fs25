@@ -267,6 +267,7 @@ def main():
             data_loader=train_loader,
             noise_multiplier=noise_multiplier,
             max_grad_norm=max_grad_norm,
+            accountant='rdp'  # Use RDP accountant
         )
 
         # File paths
