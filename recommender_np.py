@@ -239,7 +239,7 @@ def main():
     weight_decays = [1e-4, 1e-5, 1e-6]
     experiments = list(product(learning_rates, weight_decays))
 
-    num_epochs = 50
+    num_epochs = 300
     criterion = nn.MSELoss()
 
     for i, (learning_rate, weight_decay) in enumerate(experiments):
