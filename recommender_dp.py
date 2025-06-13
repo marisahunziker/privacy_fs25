@@ -257,8 +257,8 @@ def main():
     val_dataset = MovieDataset('datasets/val_dataset.pt')
     test_dataset = MovieDataset('datasets/test_dataset.pt')
 
-    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+    val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
 
     metadata = torch.load('datasets/metadata.pt')
     n_users = metadata['n_users']
@@ -278,7 +278,7 @@ def main():
         optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
         # Recreate train loader and attach PrivacyEngine
-        train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+        train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
         privacy_engine = PrivacyEngine()
         model, optimizer, train_loader = privacy_engine.make_private(
             module=model,
