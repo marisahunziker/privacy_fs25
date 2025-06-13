@@ -4,7 +4,6 @@
 *.swp
 *.bak
 *.sh
-*.pdf
 .DS_Store
 Thumbs.db
 
@@ -36,3 +35,4 @@ dist/
 
 # Exclude the data directory
 data/
+plotting/
