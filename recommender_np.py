@@ -160,7 +160,7 @@ def train(model, train_loader, val_loader, test_loader,
               f"Train Loss: {avg_train_loss:.6f} | "
               f"Validation Loss: {avg_val_loss:.6f}")
         
-        if (epoch + 1) >= 20 and (epoch + 1) % 5 == 0:
+        if (epoch + 1) >= 20 and (epoch + 1) % 10 == 0:
             checkpoint_model_path = f"{model_base_path}_epoch{epoch+1}.pt"
             checkpoint_losses_path = f"{losses_base_path}_epoch{epoch+1}.pt"
             checkpoint_metrics_path = f"{metrics_base_path}_epoch{epoch+1}.pt"
