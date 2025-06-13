@@ -101,8 +101,8 @@ class MovieDataset(Dataset):
 
 
 def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
-          model_path, losses_path, metrics_path,
-          privacy_engine=None, num_epochs=10, delta=1e-5):
+          model_base_path, losses_base_path, metrics_base_path,
+          privacy_engine, num_epochs=10, delta=1e-5):
     
     train_losses = []
     val_losses = []
@@ -111,8 +111,11 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
     metrics_log = []
 
     iteration = 0
+    epoch = 0
 
-    for epoch in range(num_epochs):
+    reached_epsilon = False
+
+    while not reached_epsilon:
         train_loss = 0.0
         model.train()
 
@@ -134,29 +137,6 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
 
             train_loss += loss.item() * rating.size(0)
             iteration += 1
-
-            # DP evaluation
-            if privacy_engine is not None:
-                epsilon = privacy_engine.get_epsilon(delta=delta)
-                for eps_target in epsilon_targets:
-                    if eps_target not in seen_epsilons and epsilon >= eps_target:
-                        seen_epsilons.add(eps_target)
-                        print(f"[ε = {eps_target:.2f} | Iter = {iteration}] Evaluating model...")
-
-                        # Evaluate
-                        mse, mae, rmse = evaluate(model, test_loader)
-
-                        # Log results
-                        metrics_log.append({
-                            'epsilon': eps_target,
-                            'delta': delta,
-                            'iterations': iteration,
-                            'mse': mse,
-                            'mae': mae,
-                            'rmse': rmse
-                        })
-
-                        print(f"  ➤ RMSE @ ε = {eps_target:.2f} → {rmse:.4f}")
 
         avg_train_loss = train_loss / len(train_loader.dataset)
         train_losses.append(avg_train_loss)
@@ -185,14 +165,54 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
               f"Train Loss: {avg_train_loss:.6f} | "
               f"Validation Loss: {avg_val_loss:.6f}")
 
-    # Save model and losses
-    torch.save(model.state_dict(), model_path)
-    torch.save({'train_loss': train_losses, 'val_loss': val_losses}, losses_path)
-    torch.save(metrics_log, metrics_path)
+        # Always check epsilon if privacy_engine is used
+        epsilon = privacy_engine.get_epsilon(delta=delta)
+        if epsilon >= 10.0:
+            print(f"Reached ε = {epsilon:.2f}, stopping training.")
+            reached_epsilon = True
 
-    print(f"Saved model to {model_path}")
-    print(f"Saved losses to {losses_path}")
-    print(f"Saved metrics to {metrics_path}")
+        for eps_target in epsilon_targets:
+            if eps_target not in seen_epsilons and epsilon >= eps_target:
+                seen_epsilons.add(eps_target)
+                print(f"[ε = {eps_target:.2f} | Iter = {iteration}] Evaluating model...")
+
+                # Evaluate
+                mse, mae, rmse = evaluate(model, test_loader)
+
+                # Log results
+                metrics_log.append({
+                    'epsilon': eps_target,
+                    'delta': delta,
+                    'iterations': iteration,
+                    'mse': mse,
+                    'mae': mae,
+                    'rmse': rmse
+                })
+
+                print(f"  ➤ RMSE @ ε = {eps_target:.2f} → {rmse:.4f}")
+
+        # Save checkpoint every 5 epochs after epoch 50, or if stopping
+        if ((epoch + 1) >= 50 and (epoch + 1) % 5 == 0) or reached_epsilon:
+            checkpoint_model_path = f"{model_base_path}_epoch{epoch+1}.pt"
+            checkpoint_losses_path = f"{losses_base_path}_epoch{epoch+1}.pt"
+            checkpoint_metrics_path = f"{metrics_base_path}_epoch{epoch+1}.pt"
+            torch.save(model.state_dict(), checkpoint_model_path)
+            torch.save({'train_loss': train_losses, 'val_loss': val_losses}, checkpoint_losses_path)
+            torch.save(metrics_log, checkpoint_metrics_path)
+
+            print(f"Checkpoint saved at epoch {epoch+1}: {checkpoint_model_path}")
+
+        epoch += 1
+
+    # Save final model and logs after training ends
+    final_model_path = f"{model_base_path}_final.pt"
+    final_losses_path = f"{losses_base_path}_final.pt"
+    final_metrics_path = f"{metrics_base_path}_final.pt"
+    torch.save(model.state_dict(), final_model_path)
+    torch.save({'train_loss': train_losses, 'val_loss': val_losses}, final_losses_path)
+    torch.save(metrics_log, final_metrics_path)
+    print(f"Final model and logs saved: {final_model_path}")
+
 
 
 
@@ -246,12 +266,11 @@ def main():
 
     # TODO: Hyperparameters (update based on prior tuning)
     learning_rate = 0.01
-    weight_decay = 1e-5
-    num_epochs = 15
+    weight_decay = 1e-4
     max_grad_norm = 1.0
     noise_multipliers = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 
-    for noise_multiplier in noise_multipliers:
+    for i, noise_multiplier in enumerate(noise_multipliers):
         print(f"\n=== Training with noise multiplier: {noise_multiplier} ===")
 
         # Recreate model and optimizer for each run
@@ -271,9 +290,9 @@ def main():
         )
 
         # File paths
-        model_path = f'models/dp/model_dp_{noise_multiplier}_{max_grad_norm}.pt'
-        losses_path = f'losses/dp/losses_dp_{noise_multiplier}_{max_grad_norm}.pt'
-        metrics_path = f'metrics/dp/metrics_dp_{noise_multiplier}_{max_grad_norm}.pt'
+        model_path = f'models/dp/model_dp_{i+1}'
+        losses_path = f'losses/dp/losses_dp_{i+1}'
+        metrics_path = f'metrics/dp/metrics_dp_{i+1}'
 
         # Loss function
         criterion = nn.MSELoss()
@@ -288,35 +307,9 @@ def main():
               model_path=model_path,
               losses_path=losses_path,
               metrics_path=metrics_path,
-              privacy_engine=privacy_engine,
-              num_epochs=num_epochs)
+              privacy_engine=privacy_engine)
 
-        # Get current privacy budget
-        epsilon = privacy_engine.get_epsilon(delta=1e-5)
-        mse, mae, rmse = evaluate(model, test_loader)
-
-        print(f"Final Evaluation - ε={epsilon:.2f}, RMSE={rmse:.4f}")
-
-        metrics_summary = {
-            'epsilon': epsilon,
-            'delta': 1e-5,
-            'noise_multiplier': noise_multiplier,
-            'max_grad_norm': max_grad_norm,
-            'learning_rate': learning_rate,
-            'weight_decay': weight_decay,
-            'num_epochs': num_epochs,
-            'iterations': num_epochs * len(train_loader),
-            'mse': mse,
-            'mae': mae,
-            'rmse': rmse,
-        }
-
-        # Append summary as final entry in .pt file
-        metric_logs = torch.load(metrics_path)
-        metric_logs.append(metrics_summary)
-        torch.save(metric_logs, metrics_path)
-
-        print(f"Finished training for σ={noise_multiplier} | ε={epsilon:.2f}, RMSE={rmse:.4f}")
+    print("\nAll DP experiments completed.")
 
 
     return 1
