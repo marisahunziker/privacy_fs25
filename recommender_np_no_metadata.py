@@ -181,7 +181,7 @@ def main():
     weight_decay = 1e-4
     batch_size = 128
 
-    num_epochs = 100
+    num_epochs = 300
     criterion = nn.MSELoss()
 
     print("Loading datasets...")
