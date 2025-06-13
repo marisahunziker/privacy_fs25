@@ -131,12 +131,6 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
 
             train_loss += loss.item() * rating.size(0)
 
-            # Count clipped gradients
-            if privacy_engine is not None:
-                clipped = optimizer.stats["clipping"]["clipped"]
-                not_clipped = optimizer.stats["clipping"]["not_clipped"]
-                total_clipped += clipped
-                total_samples += clipped + not_clipped
 
         avg_train_loss = train_loss / len(train_loader.dataset)
         train_losses.append(avg_train_loss)
@@ -201,11 +195,6 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
 
     print(f"Saved model to {model_path}")
     print(f"Saved losses to {losses_path}")
-    print(f"Clipping Stats: {total_clipped}/{total_samples} "
-          f"({clipped_ratio:.2%} gradients clipped)")
-
-
-
 
 
     
