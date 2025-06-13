@@ -164,6 +164,27 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
         print(f"Epoch {epoch + 1}/{num_epochs} | "
               f"Train Loss: {avg_train_loss:.6f} | "
               f"Validation Loss: {avg_val_loss:.6f}")
+        
+        if epoch + 1 >= 50 and (epoch + 1) % 5 == 0:
+            checkpoint_model_path = f"{model_path}_epoch{epoch+1}.pt"
+            checkpoint_losses_path = f"{losses_path}_epoch{epoch+1}.pt"
+            checkpoint_metrics_path = f"{metrics_path}_epoch{epoch+1}.pt"
+            torch.save(model.state_dict(), checkpoint_model_path)
+            torch.save({'train_loss': train_losses, 'val_loss': val_losses}, checkpoint_losses_path)
+            epsilon = privacy_engine.get_epsilon(delta=delta) if privacy_engine else None
+
+            mse, mae, rmse = evaluate(model, test_loader)
+            metrics_summary = {
+                'epoch': epoch + 1,
+                'epsilon': epsilon,
+                'delta': delta,
+                'mse': mse,
+                'mae': mae,
+                'rmse': rmse
+            }
+            torch.save(metrics_summary, checkpoint_metrics_path)
+            print(f"Saved checkpoint at epoch {epoch + 1} with ε={epsilon:.2f}, RMSE={rmse:.4f}")
+
 
     # Save model and losses
     torch.save(model.state_dict(), model_path)
@@ -227,18 +248,20 @@ def main():
     val_dataset = MovieDataset('datasets/val_dataset.pt')
     test_dataset = MovieDataset('datasets/test_dataset.pt')
 
-    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
-
     metadata = torch.load('datasets/metadata.pt')
     n_users = metadata['n_users']
     n_movies = metadata['n_movies']
 
     # Fixed hyperparameters
     learning_rate = 0.01
-    weight_decay = 1e-5
-    num_epochs = 15
+    weight_decay = 1e-4
+    num_epochs = 100
     noise_multiplier = 1.0  # Fixed noise multiplier
+    batch_size = 128
+
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    
 
     # Range of clipping norms to evaluate
     clipping_norms = [0.5, 1.0, 1.5, 2.0, 5.0]
@@ -251,7 +274,7 @@ def main():
         optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
         # Recreate train loader and attach PrivacyEngine
-        train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         privacy_engine = PrivacyEngine()
         model, optimizer, train_loader = privacy_engine.make_private(
             module=model,
