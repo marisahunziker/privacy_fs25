@@ -4,6 +4,7 @@
 *.swp
 *.bak
 *.sh
+*.pdf
 .DS_Store
 Thumbs.db
 
