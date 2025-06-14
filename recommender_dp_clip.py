@@ -107,9 +107,6 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
     train_losses = []
     val_losses = []
 
-    total_clipped = 0
-    total_samples = 0
-
     for epoch in range(num_epochs):
         train_loss = 0.0
         model.train()
@@ -159,14 +156,16 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
               f"Train Loss: {avg_train_loss:.6f} | "
               f"Validation Loss: {avg_val_loss:.6f}")
         
-        if epoch + 1 >= 50 and (epoch + 1) % 5 == 0:
+        if epoch + 1 >= 50 and (epoch + 1) % 10 == 0:
             checkpoint_model_path = f"{model_path}_epoch{epoch+1}.pt"
             checkpoint_losses_path = f"{losses_path}_epoch{epoch+1}.pt"
             checkpoint_metrics_path = f"{metrics_path}_epoch{epoch+1}.pt"
+            
             torch.save(model.state_dict(), checkpoint_model_path)
             torch.save({'train_loss': train_losses, 'val_loss': val_losses}, checkpoint_losses_path)
+            
+            # Evaluate model, compute current epsilon and save metrics
             epsilon = privacy_engine.get_epsilon(delta=delta) if privacy_engine else None
-
             mse, mae, rmse = evaluate(model, test_loader)
             metrics_summary = {
                 'epoch': epoch + 1,
@@ -180,21 +179,6 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
             print(f"Saved checkpoint at epoch {epoch + 1} with ε={epsilon:.2f}, RMSE={rmse:.4f}")
 
 
-    # Save model and losses
-    torch.save(model.state_dict(), model_path)
-    torch.save({'train_loss': train_losses, 'val_loss': val_losses}, losses_path)
-
-    # Calculate % of clipped gradients
-    clipped_ratio = total_clipped / total_samples if total_samples > 0 else 0.0
-    metrics_log = {
-        'total_samples': total_samples,
-        'total_clipped': total_clipped,
-        'clipped_ratio': clipped_ratio
-    }
-    torch.save(metrics_log, metrics_path)
-
-    print(f"Saved model to {model_path}")
-    print(f"Saved losses to {losses_path}")
 
 
     
@@ -244,7 +228,7 @@ def main():
     # Fixed hyperparameters
     learning_rate = 0.01
     weight_decay = 1e-4
-    num_epochs = 100
+    num_epochs = 300
     noise_multiplier = 1.0  # Fixed noise multiplier
     batch_size = 128
 
@@ -253,7 +237,7 @@ def main():
     
 
     # Range of clipping norms to evaluate
-    clipping_norms = [0.5, 1.0, 1.5, 2.0, 5.0]
+    clipping_norms = [1.0, 1.5, 2.0]
 
     for max_grad_norm in clipping_norms:
         print(f"\n=== Training with clipping norm: {max_grad_norm} (σ = {noise_multiplier}) ===")
@@ -274,9 +258,9 @@ def main():
         )
 
         # File paths
-        model_path = f'models/clip/model_dp_clipnorm_{max_grad_norm}.pt'
-        losses_path = f'losses/clip/losses_dp_clipnorm_{max_grad_norm}.pt'
-        metrics_path = f'metrics/clip/metrics_dp_clipnorm_{max_grad_norm}.pt'
+        model_path = f'models/clip/model_dp_clipnorm_{max_grad_norm}'
+        losses_path = f'losses/clip/losses_dp_clipnorm_{max_grad_norm}'
+        metrics_path = f'metrics/clip/metrics_dp_clipnorm_{max_grad_norm}'
 
         # Loss function
         criterion = nn.MSELoss()
@@ -294,33 +278,7 @@ def main():
               privacy_engine=privacy_engine,
               num_epochs=num_epochs)
 
-        # Get final privacy budget and test performance
-        epsilon = privacy_engine.get_epsilon(delta=1e-5)
-        mse, mae, rmse = evaluate(model, test_loader)
-
-        print(f"Final Evaluation - ε={epsilon:.2f}, RMSE={rmse:.4f}")
-
-        metrics_summary = {
-            'epsilon': epsilon,
-            'delta': 1e-5,
-            'noise_multiplier': noise_multiplier,
-            'max_grad_norm': max_grad_norm,
-            'learning_rate': learning_rate,
-            'weight_decay': weight_decay,
-            'num_epochs': num_epochs,
-            'iterations': num_epochs * len(train_loader),
-            'mse': mse,
-            'mae': mae,
-            'rmse': rmse,
-        }
-
-        # Append summary as final entry in .pt file
-        metric_logs = torch.load(metrics_path)
-        metric_logs.append(metrics_summary)
-        torch.save(metric_logs, metrics_path)
-
-        print(f"Finished training for clipping norm = {max_grad_norm} | ε = {epsilon:.2f}, RMSE = {rmse:.4f}")
-
+        
     return 1
 
 
