@@ -102,7 +102,7 @@ class MovieDataset(Dataset):
 
 def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
           model_base_path, losses_base_path, metrics_base_path,
-          privacy_engine, num_epochs=10, delta=1e-5):
+          privacy_engine, num_epochs=500, delta=1e-5):
     
     train_losses = []
     val_losses = []
@@ -203,6 +203,11 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
             print(f"Checkpoint saved at epoch {epoch+1}: {checkpoint_model_path}")
 
         epoch += 1
+
+        if epoch >= num_epochs:
+            print("Max epochs reached.")
+            break
+
 
     # Save final model and logs after training ends
     final_model_path = f"{model_base_path}_final.pt"
