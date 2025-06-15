@@ -237,7 +237,7 @@ def main():
     
 
     # Range of clipping norms to evaluate
-    clipping_norms = [1.0, 1.5, 2.0]
+    clipping_norms = [0.5, 1.0]
 
     for max_grad_norm in clipping_norms:
         print(f"\n=== Training with clipping norm: {max_grad_norm} (σ = {noise_multiplier}) ===")
