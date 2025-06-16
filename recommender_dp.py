@@ -102,7 +102,7 @@ class MovieDataset(Dataset):
 
 def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
           model_base_path, losses_base_path, metrics_base_path,
-          privacy_engine, num_epochs=500, delta=1e-5):
+          privacy_engine, num_epochs=600, delta=1e-5):
     
     train_losses = []
     val_losses = []
@@ -272,8 +272,8 @@ def main():
     # TODO: Hyperparameters (update based on prior tuning)
     learning_rate = 0.01
     weight_decay = 1e-4
-    max_grad_norm = 1.0
-    noise_multipliers = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+    max_grad_norm = 3.0
+    noise_multipliers = [0.5, 0.75, 1.0]
 
     for i, noise_multiplier in enumerate(noise_multipliers):
         print(f"\n=== Training with noise multiplier: {noise_multiplier} ===")
