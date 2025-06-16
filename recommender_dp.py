@@ -1,8 +1,6 @@
 import numpy as np
-import sys
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
@@ -10,9 +8,41 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 from opacus import PrivacyEngine
 
 
+"""
+This script implements a differentially private matrix factorization-based recommender system using PyTorch.
+It is used to train a model on a movie recommendation dataset while ensuring differential privacy,
+and experiment with different noise multipliers.
+"""
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class MatrixFactorizationModel(nn.Module):
+    """
+    MatrixFactorizationModel implements a matrix factorization-based recommender system with user and movie embeddings,
+    augmented by user metadata embeddings (gender, age, occupation, zip code).
+
+    Args:
+        n_users (int): Number of unique users.
+        n_movies (int): Number of unique movies.
+        n_genders (int, optional): Number of unique gender categories. Default is 2.
+        n_ages (int, optional): Number of unique age categories. Default is 7.
+        n_occupations (int, optional): Number of unique occupation categories. Default is 21.
+        n_zip_codes (int, optional): Number of unique zip code categories. Default is 100.
+        embedding_dim (int, optional): Dimension of the latent factors for users and movies. Default is 32.
+        metadata_dim (int, optional): Dimension of the embeddings for each metadata feature. Default is 8.
+        dropout_rate (float, optional): Dropout rate applied after combining user latent and metadata embeddings. Default is 0.1.
+
+    Forward Args:
+        user_id (Tensor): Tensor of user IDs, shape [batch_size].
+        movie_id (Tensor): Tensor of movie IDs, shape [batch_size].
+        gender (Tensor): Tensor of gender indices, shape [batch_size].
+        age (Tensor): Tensor of age indices, shape [batch_size].
+        occupation (Tensor): Tensor of occupation indices, shape [batch_size].
+        zip_code (Tensor): Tensor of zip code indices, shape [batch_size].
+
+    Returns:
+        Tensor: Predicted ratings or scores, shape [batch_size].
+    """
     def __init__(self, n_users, n_movies, n_genders=2, n_ages=7, n_occupations=21, n_zip_codes=100, embedding_dim=32, metadata_dim=8, dropout_rate=0.1):
         super(MatrixFactorizationModel, self).__init__()
 
@@ -103,6 +133,29 @@ class MovieDataset(Dataset):
 def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
           model_base_path, losses_base_path, metrics_base_path,
           privacy_engine, num_epochs=600, delta=1e-5):
+    """
+    Trains a recommendation model with differential privacy, evaluating and checkpointing at specified privacy budgets (for epsilon between 0.5 and 10, every 0.5 step).
+    Args:
+        model (torch.nn.Module): The recommendation model to be trained.
+        train_loader (DataLoader): DataLoader for the training dataset.
+        val_loader (DataLoader): DataLoader for the validation dataset.
+        test_loader (DataLoader): DataLoader for the test dataset, used for evaluation at privacy milestones.
+        criterion (callable): Loss function to optimize.
+        optimizer (torch.optim.Optimizer): Optimizer for model parameters.
+        model_base_path (str): Base file path for saving model checkpoints.
+        losses_base_path (str): Base file path for saving loss logs.
+        metrics_base_path (str): Base file path for saving evaluation metrics.
+        privacy_engine (opacus.PrivacyEngine): Privacy engine to track and enforce differential privacy.
+        num_epochs (int, optional): Maximum number of training epochs. Default is 600.
+        delta (float, optional): Target delta for differential privacy. Default is 1e-5.
+    Returns:
+        None
+    Side Effects:
+        - Trains the model and saves checkpoints at specified intervals and privacy budgets.
+        - Logs training and validation losses, as well as evaluation metrics (MSE, MAE, RMSE) at privacy milestones.
+        - Stops training when the privacy budget (epsilon) reaches or exceeds 10.0, or when the maximum number of epochs is reached.
+        - Saves final model state and logs after training ends.
+    """
     
     train_losses = []
     val_losses = []
@@ -224,6 +277,19 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
 
     
 def evaluate(model, test_loader):
+    """
+    Evaluates the performance of a recommendation model on a test dataset.
+
+    Args:
+        model (torch.nn.Module): The recommendation model to evaluate.
+        test_loader (torch.utils.data.DataLoader): DataLoader providing the test dataset.
+
+    Returns:
+        tuple: A tuple containing the following evaluation metrics:
+            - mse (float): Mean Squared Error between predicted and true ratings.
+            - mae (float): Mean Absolute Error between predicted and true ratings.
+            - rmse (float): Root Mean Squared Error between predicted and true ratings.
+    """
     model.eval()
     predictions = []
     targets = []
@@ -255,6 +321,23 @@ def evaluate(model, test_loader):
 
 
 def main():
+    """
+    Main function to run differentially private training experiments for a matrix factorization recommender system.
+
+    This function performs the following steps:
+    1. Loads training, validation, and test datasets.
+    2. Loads metadata to determine the number of users and movies.
+    3. Defines hyperparameters for training, including learning rate, weight decay, maximum gradient norm, and a list of noise multipliers for differential privacy.
+    4. For each noise multiplier:
+        - Initializes a new model and optimizer.
+        - Sets up a differentially private training data loader using Opacus's PrivacyEngine with the specified noise multiplier and gradient clipping.
+        - Defines file paths for saving models, losses, and metrics.
+        - Trains the model using the provided training, validation, and test loaders, and saves results.
+    5. Prints completion message after all experiments.
+
+    Returns:
+        int: Returns 1 upon successful completion.
+    """
     print(f"Running in differentially private mode...")
 
     print("Loading datasets...")
@@ -273,7 +356,7 @@ def main():
     learning_rate = 0.01
     weight_decay = 1e-4
     max_grad_norm = 3.0
-    noise_multipliers = [1.25, 1.5, 2.0]
+    noise_multipliers = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 
     for i, noise_multiplier in enumerate(noise_multipliers):
         print(f"\n=== Training with noise multiplier: {noise_multiplier} ===")

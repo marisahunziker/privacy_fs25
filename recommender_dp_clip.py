@@ -1,8 +1,6 @@
 import numpy as np
-import sys
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
@@ -10,9 +8,42 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 from opacus import PrivacyEngine
 
 
+"""
+This script implements a matrix factorization-based recommender system with user and movie embeddings,
+augmented by user metadata embeddings. It includes a training loop with differential privacy support using the Opacus library.
+The model is trained with varying gradient clipping norms to evaluate the impact on performance.
+"""
+
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class MatrixFactorizationModel(nn.Module):
+    """
+    MatrixFactorizationModel implements a matrix factorization-based recommender system with user and movie embeddings,
+    augmented by user metadata embeddings (gender, age, occupation, zip code).
+
+    Args:
+        n_users (int): Number of unique users.
+        n_movies (int): Number of unique movies.
+        n_genders (int, optional): Number of unique gender categories. Default is 2.
+        n_ages (int, optional): Number of unique age categories. Default is 7.
+        n_occupations (int, optional): Number of unique occupation categories. Default is 21.
+        n_zip_codes (int, optional): Number of unique zip code categories. Default is 100.
+        embedding_dim (int, optional): Dimension of the latent factors for users and movies. Default is 32.
+        metadata_dim (int, optional): Dimension of the embeddings for each metadata feature. Default is 8.
+        dropout_rate (float, optional): Dropout rate applied after combining user latent and metadata embeddings. Default is 0.1.
+
+    Forward Args:
+        user_id (Tensor): Tensor of user IDs, shape [batch_size].
+        movie_id (Tensor): Tensor of movie IDs, shape [batch_size].
+        gender (Tensor): Tensor of gender indices, shape [batch_size].
+        age (Tensor): Tensor of age indices, shape [batch_size].
+        occupation (Tensor): Tensor of occupation indices, shape [batch_size].
+        zip_code (Tensor): Tensor of zip code indices, shape [batch_size].
+
+    Returns:
+        Tensor: Predicted ratings or scores, shape [batch_size].
+    """
     def __init__(self, n_users, n_movies, n_genders=2, n_ages=7, n_occupations=21, n_zip_codes=100, embedding_dim=32, metadata_dim=8, dropout_rate=0.1):
         super(MatrixFactorizationModel, self).__init__()
 
@@ -102,7 +133,31 @@ class MovieDataset(Dataset):
 
 def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
           model_path, losses_path, metrics_path,
-          privacy_engine=None, num_epochs=10, delta=1e-5):
+          privacy_engine, num_epochs=10, delta=1e-5):
+    """
+    Trains a recommendation model with differential privacy, evaluates on validation and test sets, 
+    and periodically saves checkpoints and metrics.
+    Args:
+        model (torch.nn.Module): The recommendation model to be trained.
+        train_loader (DataLoader): DataLoader for the training dataset.
+        val_loader (DataLoader): DataLoader for the validation dataset.
+        test_loader (DataLoader): DataLoader for the test dataset.
+        criterion (callable): Loss function to optimize.
+        optimizer (torch.optim.Optimizer): Optimizer for model parameters.
+        model_path (str): Path prefix for saving model checkpoints.
+        losses_path (str): Path prefix for saving training and validation losses.
+        metrics_path (str): Path prefix for saving evaluation metrics.
+        privacy_engine (opacus.PrivacyEngine): Privacy engine for differential privacy accounting.
+        num_epochs (int, optional): Number of training epochs. Default is 10.
+        delta (float, optional): Target delta for differential privacy. Default is 1e-5.
+    Returns:
+        None
+    Side Effects:
+        - Trains the model and updates its parameters.
+        - Prints training and validation loss after each epoch.
+        - Saves model checkpoints, losses, and metrics every 10 epochs after epoch 50.
+        - Computes and saves privacy budget (epsilon).
+    """
 
     train_losses = []
     val_losses = []
@@ -156,6 +211,7 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
               f"Train Loss: {avg_train_loss:.6f} | "
               f"Validation Loss: {avg_val_loss:.6f}")
         
+        # Save checkpoints and metrics every 10 epochs after epoch 50
         if epoch + 1 >= 50 and (epoch + 1) % 10 == 0:
             checkpoint_model_path = f"{model_path}_epoch{epoch+1}.pt"
             checkpoint_losses_path = f"{losses_path}_epoch{epoch+1}.pt"
@@ -183,6 +239,19 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
 
     
 def evaluate(model, test_loader):
+    """
+    Evaluates the performance of a recommendation model on a test dataset.
+
+    Args:
+        model (torch.nn.Module): The recommendation model to evaluate.
+        test_loader (torch.utils.data.DataLoader): DataLoader providing the test dataset.
+
+    Returns:
+        tuple: A tuple containing the following evaluation metrics:
+            - mse (float): Mean Squared Error between predicted and true ratings.
+            - mae (float): Mean Absolute Error between predicted and true ratings.
+            - rmse (float): Root Mean Squared Error between predicted and true ratings.
+    """
     model.eval()
     predictions = []
     targets = []
@@ -214,6 +283,23 @@ def evaluate(model, test_loader):
 
 
 def main():
+    """
+    Main function to train and evaluate a differentially private matrix factorization model
+    with varying gradient clipping norms.
+    This function performs the following steps:
+    1. Loads training, validation, and test datasets, as well as metadata for user and movie counts.
+    2. Sets fixed hyperparameters for training, including learning rate, weight decay, number of epochs,
+        noise multiplier for differential privacy, and batch size.
+    3. Iterates over a predefined list of gradient clipping norms, and for each:
+         - Initializes a new model and optimizer.
+         - Wraps the model, optimizer, and data loader with a PrivacyEngine to enable differential privacy.
+         - Defines file paths for saving the model, losses, and metrics.
+         - Trains the model using the specified settings and saves results.
+    4. Returns 1 upon completion.
+    Note:
+    - Designed for experimentation with the impact of different clipping norms on model performance
+      under differential privacy.
+    """
     print(f"Running in differentially private mode (Varying clipping norm)...")
 
     print("Loading datasets...")
@@ -237,7 +323,7 @@ def main():
     
 
     # Range of clipping norms to evaluate
-    clipping_norms = [1.0, 1.5, 2.0]
+    clipping_norms = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
 
     for max_grad_norm in clipping_norms:
         print(f"\n=== Training with clipping norm: {max_grad_norm} (σ = {noise_multiplier}) ===")

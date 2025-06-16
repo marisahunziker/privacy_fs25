@@ -1,19 +1,44 @@
-from itertools import product
 import numpy as np
-import sys
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from sklearn.metrics import mean_squared_error, mean_absolute_error
-from opacus import PrivacyEngine
+
+"""
+This script implements a non-private recommender system using matrix factorization without metadata.
+It is used to evaluate the impact of metadata on the performance of the recommender system.
+"""
+
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class MatrixFactorizationModel(nn.Module):
+    """
+    MatrixFactorizationModel implements a simple matrix factorization approach for collaborative filtering in recommendation systems.
+
+    Args:
+        n_users (int): Number of unique users in the dataset.
+        n_movies (int): Number of unique movies/items in the dataset.
+        embedding_dim (int, optional): Dimensionality of the latent embedding vectors for users and movies. Default is 32.
+        dropout_rate (float, optional): Dropout rate applied to user embeddings during training to prevent overfitting. Default is 0.1.
+
+    Attributes:
+        user_embedding (nn.Embedding): Embedding layer mapping user IDs to latent vectors.
+        movie_embedding (nn.Embedding): Embedding layer mapping movie IDs to latent vectors.
+        dropout (nn.Dropout): Dropout layer applied to user embeddings.
+
+    Methods:
+        forward(user_id, movie_id):
+            Computes the predicted rating or interaction score for a given pair of user and movie IDs.
+            Args:
+                user_id (Tensor): Tensor of user IDs.
+                movie_id (Tensor): Tensor of movie IDs.
+            Returns:
+                Tensor: Predicted scores for each user-movie pair, computed as the dot product of their latent vectors.
+    """
     def __init__(self, n_users, n_movies, embedding_dim=32, dropout_rate=0.1):
         super(MatrixFactorizationModel, self).__init__()
 
@@ -46,7 +71,16 @@ class MatrixFactorizationModel(nn.Module):
 
 class MovieDataset(Dataset):
     """
-    A PyTorch Dataset for loading movie recommendation data.
+    A PyTorch Dataset for loading movie rating data.
+    Args:
+        path (str): Path to the file containing the dataset, expected to be a torch-serialized object.
+    Attributes:
+        dataset (list): Loaded dataset, where each entry is expected to be a tuple containing
+            (user_id, movie_id, rating, gender, age, occupation, zip_code).
+    Methods:
+        __len__(): Returns the number of samples in the dataset.
+        __getitem__(idx): Retrieves a sample by index, returning a dictionary with keys:
+            'user_id', 'movie_id', and 'rating'.
     """
     def __init__(self, path):
         self.dataset = torch.load(path)
@@ -72,6 +106,26 @@ class MovieDataset(Dataset):
 def train(model, train_loader, val_loader, test_loader,
         criterion, optimizer,
         model_base_path, losses_base_path, metrics_base_path, num_epochs=10):
+    """
+    Trains a recommendation model using the provided data loaders, loss function, and optimizer.
+    Tracks and saves training and validation losses, and periodically checkpoints the model and evaluation metrics.
+    Args:
+        model (torch.nn.Module): The recommendation model to train.
+        train_loader (torch.utils.data.DataLoader): DataLoader for the training dataset.
+        val_loader (torch.utils.data.DataLoader): DataLoader for the validation dataset.
+        test_loader (torch.utils.data.DataLoader): DataLoader for the test dataset, used for evaluation.
+        criterion (torch.nn.Module): Loss function to optimize.
+        optimizer (torch.optim.Optimizer): Optimizer for updating model parameters.
+        model_base_path (str): Base file path for saving model checkpoints.
+        losses_base_path (str): Base file path for saving loss checkpoints.
+        metrics_base_path (str): Base file path for saving evaluation metrics.
+        num_epochs (int, optional): Number of training epochs. Default is 10.
+    Returns:
+        None
+    Side Effects:
+        - Prints training and validation loss after each epoch.
+        - Saves model checkpoints, loss history, and evaluation metrics every 5 epochs after epoch 50.
+    """
     
     train_losses = []
     val_losses = []
@@ -147,6 +201,19 @@ def train(model, train_loader, val_loader, test_loader,
 
     
 def evaluate(model, test_loader):
+    """
+    Evaluates the performance of a recommendation model on a test dataset.
+
+    Args:
+        model (torch.nn.Module): The recommendation model to be evaluated.
+        test_loader (torch.utils.data.DataLoader): DataLoader providing the test dataset.
+
+    Returns:
+        tuple: A tuple containing the following evaluation metrics:
+            - mse (float): Mean Squared Error between predicted and true ratings.
+            - mae (float): Mean Absolute Error between predicted and true ratings.
+            - rmse (float): Root Mean Squared Error between predicted and true ratings.
+    """
     model.eval()
     predictions = []
     targets = []
@@ -174,7 +241,16 @@ def evaluate(model, test_loader):
 
 
 def main():
-    print("Non-private recommender system")
+    """
+    Main function to train a non-private recommender system without metadata.
+    This function sets up the experimental configuration, loads the datasets and metadata,
+    initializes the matrix factorization model, optimizer, and loss criterion, and then
+    trains the model using the provided training, validation, and test data loaders.
+    The trained model, training losses, and evaluation metrics are saved to specified paths.
+    Returns:
+        int: Returns 1 upon successful completion of training.
+    """
+    print("Non-private recommender system without metadata")
     
     # Define experimental configs
     learning_rate = 0.01
