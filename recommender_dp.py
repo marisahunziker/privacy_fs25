@@ -309,9 +309,9 @@ def main():
               test_loader=test_loader,
               criterion=criterion,
               optimizer=optimizer,
-              model_path=model_path,
-              losses_path=losses_path,
-              metrics_path=metrics_path,
+              model_base_path=model_path,
+              losses_base_path=losses_path,
+              metrics_base_path=metrics_path,
               privacy_engine=privacy_engine)
 
     print("\nAll DP experiments completed.")
