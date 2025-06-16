@@ -284,15 +284,14 @@ def main():
 
         # Recreate train loader and attach PrivacyEngine
         train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
-        privacy_engine = PrivacyEngine()
+        privacy_engine = PrivacyEngine(accountant='rdp')  # Use RDP accountant
         model, optimizer, train_loader = privacy_engine.make_private(
             module=model,
             optimizer=optimizer,
             data_loader=train_loader,
             noise_multiplier=noise_multiplier,
-            max_grad_norm=max_grad_norm,
-            accountant='rdp'  # Use RDP accountant
-        )
+            max_grad_norm=max_grad_norm
+            )
 
         # File paths
         model_path = f'models/dp/model_dp_{i+1}'
