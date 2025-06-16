@@ -32,10 +32,10 @@ dist/
 
 # Exclude all .pt files (PyTorch model files)
 *.pt
+*.pdf
 
 # Exclude the data and results directories
 data/
-plotting/
 datasets/
 metrics/
 losses/

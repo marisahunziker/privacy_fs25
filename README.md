@@ -35,14 +35,17 @@ The repository includes four main scripts for experimenting with matrix factoriz
     ```
 
 2. **Dataset Download**  
-    Download the MovieLens 1M dataset from [https://grouplens.org/datasets/movielens/1m/](https://grouplens.org/datasets/movielens/1m/) and place it in the `data/` folder.
+    Download the MovieLens 1M dataset from [GroupLens](https://grouplens.org/datasets/movielens/1m/) and place it in the `data/` folder.
 
 3. **Preprocessing**  
-    Use the `data_preprocessor.ipynb` notebook to preprocess the dataset and save it as a `TensorDataset` in the `datasets/` directory for model training, evaluation, and testing.
+    Run `data_preprocessor.ipynb` to preprocess the dataset and save it as a `TensorDataset` in `datasets/`.
 
 4. **Dataset Analysis**  
-    To obtain key metrics of the preprocessed and split datasets, run the `data_analyser.ipynb` notebook.
+    Use `data_analyser.ipynb` to compute key metrics for the preprocessed and split datasets.
 
 5. **Running Experiments**  
-    Execute the provided scripts. Metrics and model checkpoints will be saved in their respective directories.
+    Execute the scripts. Metrics and model checkpoints are saved in their respective directories.
 
+### Evaluation
+
+The `evaluation` folder contains a Jupyter notebook for generating plots and evaluating model performance.
