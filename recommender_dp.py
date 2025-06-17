@@ -6,6 +6,8 @@ from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from opacus import PrivacyEngine
+import sys
+
 
 
 """
@@ -335,25 +337,20 @@ def evaluate(model, test_loader):
 
 
 
-def main():
+def main(noise_multiplier=1.0):
     """
-    Main function to run differentially private training experiments for a matrix factorization recommender system.
-
-    This function performs the following steps:
-    1. Loads training, validation, and test datasets.
-    2. Loads metadata to determine the number of users and movies.
-    3. Defines hyperparameters for training, including learning rate, weight decay, maximum gradient norm, and a list of noise multipliers for differential privacy.
-    4. For each noise multiplier:
-        - Initializes a new model and optimizer.
-        - Sets up a differentially private training data loader using Opacus's PrivacyEngine with the specified noise multiplier and gradient clipping.
-        - Defines file paths for saving models, losses, and metrics.
-        - Trains the model using the provided training, validation, and test loaders, and saves results.
-    5. Prints completion message after all experiments.
-
+    Runs the training pipeline for a differentially private recommender system using matrix factorization.
+    This function initializes datasets, model, optimizer, and attaches a PrivacyEngine to ensure differential privacy during training.
+    It supports configuring the noise multiplier for privacy, sets up data loaders, and manages file paths for saving models, losses, and metrics.
+    The function then starts the training process with differential privacy enabled.
+    Args:
+        noise_multiplier (float, optional): The noise multiplier for the differential privacy mechanism. 
+            Higher values provide more privacy at the cost of model utility. Defaults to 1.0.
     Returns:
-        int: Returns 1 upon successful completion.
+        int: Returns 1 upon successful completion of the training process.
     """
-    print(f"Running in differentially private mode...")
+   
+    print(f"Running in differentially private mode with noise_multiplier = {noise_multiplier}")
 
     print("Loading datasets...")
     train_dataset = MovieDataset('datasets/train_dataset.pt')
@@ -367,55 +364,57 @@ def main():
     n_users = metadata['n_users']
     n_movies = metadata['n_movies']
 
-    # TODO: Hyperparameters (update based on prior tuning)
+    # Hyperparameters
     learning_rate = 0.01
     weight_decay = 1e-4
     max_grad_norm = 3.0
-    noise_multipliers = [1.0]
 
-    for i, noise_multiplier in enumerate(noise_multipliers):
-        print(f"\n=== Training with noise multiplier: {noise_multiplier} ===")
+    print(f"Training with noise_multiplier: {noise_multiplier}")
 
-        # Recreate model and optimizer for each run
-        model = MatrixFactorizationModel(n_users=n_users, n_movies=n_movies).to(device)
-        optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    # Recreate model and optimizer for each run
+    model = MatrixFactorizationModel(n_users=n_users, n_movies=n_movies).to(device)
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
-        # Recreate train loader and attach PrivacyEngine
-        train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
-        privacy_engine = PrivacyEngine(accountant='rdp')  # Use RDP accountant
-        model, optimizer, train_loader = privacy_engine.make_private(
-            module=model,
-            optimizer=optimizer,
-            data_loader=train_loader,
-            noise_multiplier=noise_multiplier,
-            max_grad_norm=max_grad_norm
-            )
+    # Recreate train loader and attach PrivacyEngine
+    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+    privacy_engine = PrivacyEngine(accountant='rdp')  # Use RDP accountant
+    model, optimizer, train_loader = privacy_engine.make_private(
+        module=model,
+        optimizer=optimizer,
+        data_loader=train_loader,
+        noise_multiplier=noise_multiplier,
+        max_grad_norm=max_grad_norm
+    )
 
-        # File paths
-        model_path = f'models/dp/model_dp_{noise_multiplier}'
-        losses_path = f'losses/dp/losses_dp_{noise_multiplier}'
-        metrics_path = f'metrics/dp/metrics_dp_{noise_multiplier}'
+    # File paths
+    model_path = f'models/dp/model_dp_{noise_multiplier}'
+    losses_path = f'losses/dp/losses_dp_{noise_multiplier}'
+    metrics_path = f'metrics/dp/metrics_dp_{noise_multiplier}'
 
-        # Loss function
-        criterion = nn.MSELoss()
+    # Loss function
+    criterion = nn.MSELoss()
 
-        print("Starting training with differential privacy...")
-        train(model=model,
-              train_loader=train_loader,
-              val_loader=val_loader,
-              test_loader=test_loader,
-              criterion=criterion,
-              optimizer=optimizer,
-              model_base_path=model_path,
-              losses_base_path=losses_path,
-              metrics_base_path=metrics_path,
-              privacy_engine=privacy_engine)
+    print("Starting training with differential privacy...")
+    train(model=model,
+          train_loader=train_loader,
+          val_loader=val_loader,
+          test_loader=test_loader,
+          criterion=criterion,
+          optimizer=optimizer,
+          model_base_path=model_path,
+          losses_base_path=losses_path,
+          metrics_base_path=metrics_path,
+          privacy_engine=privacy_engine)
 
-    print("\nAll DP experiments completed.")
-
-
+    print("\nDP training completed.")
     return 1
 
 
 if __name__ == "__main__":
-    main()
+    # You can now run with: python script_name.py 0.5
+    if len(sys.argv) > 1:
+        noise_multiplier = float(sys.argv[1])  # parses first command line arg
+    else:
+        noise_multiplier = 1.0  # fallback if not provided
+    
+    main(noise_multiplier)
