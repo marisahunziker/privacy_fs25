@@ -356,7 +356,7 @@ def main():
     learning_rate = 0.01
     weight_decay = 1e-4
     max_grad_norm = 3.0
-    noise_multipliers = [1.0]
+    noise_multipliers = [2.0]
 
     for i, noise_multiplier in enumerate(noise_multipliers):
         print(f"\n=== Training with noise multiplier: {noise_multiplier} ===")
