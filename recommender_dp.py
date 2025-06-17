@@ -356,7 +356,7 @@ def main():
     learning_rate = 0.01
     weight_decay = 1e-4
     max_grad_norm = 3.0
-    noise_multipliers = [2.0]
+    noise_multipliers = [1.0]
 
     for i, noise_multiplier in enumerate(noise_multipliers):
         print(f"\n=== Training with noise multiplier: {noise_multiplier} ===")
@@ -377,9 +377,9 @@ def main():
             )
 
         # File paths
-        model_path = f'models/dp/model_dp_{i+1}'
-        losses_path = f'losses/dp/losses_dp_{i+1}'
-        metrics_path = f'metrics/dp/metrics_dp_{i+1}'
+        model_path = f'models/dp/model_dp_{noise_multiplier}'
+        losses_path = f'losses/dp/losses_dp_{noise_multiplier}'
+        metrics_path = f'metrics/dp/metrics_dp_{noise_multiplier}'
 
         # Loss function
         criterion = nn.MSELoss()
