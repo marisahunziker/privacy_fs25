@@ -234,7 +234,8 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
 
                 # Log results
                 metrics_log.append({
-                    'epsilon': eps_target,
+                    'epoch': epoch + 1,
+                    'epsilon': epsilon,
                     'delta': delta,
                     'iterations': iteration,
                     'mse': mse,
@@ -249,6 +250,20 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
             checkpoint_model_path = f"{model_base_path}_epoch{epoch+1}.pt"
             checkpoint_losses_path = f"{losses_base_path}_epoch{epoch+1}.pt"
             checkpoint_metrics_path = f"{metrics_base_path}_epoch{epoch+1}.pt"
+
+            mse, mae, rmse = evaluate(model, test_loader)
+
+            # Log results
+            metrics_log.append({
+                'epoch': epoch + 1,
+                'epsilon': epsilon,
+                'delta': delta,
+                'iterations': iteration,
+                'mse': mse,
+                'mae': mae,
+                'rmse': rmse
+            })
+
             torch.save(model.state_dict(), checkpoint_model_path)
             torch.save({'train_loss': train_losses, 'val_loss': val_losses}, checkpoint_losses_path)
             torch.save(metrics_log, checkpoint_metrics_path)
