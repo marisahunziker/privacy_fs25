@@ -1,6 +1,7 @@
 ## Privacy Preserving Movie Recommender System
 
 This project was developed for the course *Privacy-Preserving Methods for Data Science and Distributed Systems* by Isabel Wagner at the University of Basel, spring semester 2025.
+For the hand-in I included all files necessary to run the scripts, including the raw and processed datasets, as well as the data gathered during training and the final models, which I present in my report.
 
 ### Description
 
@@ -51,3 +52,5 @@ The repository includes four main scripts for experimenting with matrix factoriz
 The `evaluation` folder contains three Jupyter notebook, which can be used to analyze the training and performance of the different models by generating plots and print the results.
 
 ### Generating Recommendations
+
+In the `evaluation` folder is a Jupyter notebook named `generate_recommendations.ipynb` which can be used to generate recommendations with the DP-models or the non-private models.

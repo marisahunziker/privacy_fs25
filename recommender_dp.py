@@ -134,7 +134,7 @@ class MovieDataset(Dataset):
 
 def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
           model_base_path, losses_base_path, metrics_base_path,
-          privacy_engine, num_epochs=600, delta=1e-5):
+          privacy_engine, num_epochs=500, delta=1e-5):
     """
     Trains a recommendation model with differential privacy, evaluating and checkpointing at specified privacy budgets (for epsilon between 0.5 and 10, every 0.5 step).
     Args:
@@ -277,16 +277,6 @@ def train(model, train_loader, val_loader, test_loader, criterion, optimizer,
         if epoch >= num_epochs:
             print("Max epochs reached.")
             break
-
-
-    # Save final model and logs after training ends
-    final_model_path = f"{model_base_path}_final.pt"
-    final_losses_path = f"{losses_base_path}_final.pt"
-    final_metrics_path = f"{metrics_base_path}_final.pt"
-    torch.save(model.state_dict(), final_model_path)
-    torch.save({'train_loss': train_losses, 'val_loss': val_losses}, final_losses_path)
-    torch.save(metrics_log, final_metrics_path)
-    print(f"Final model and logs saved: {final_model_path}")
 
 
 
