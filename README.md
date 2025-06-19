@@ -49,7 +49,7 @@ The repository includes four main scripts for experimenting with matrix factoriz
 
 ### Evaluation
 
-The `evaluation` folder contains three Jupyter notebook, which can be used to analyze the training and performance of the different models by generating plots and print the results.
+The `evaluation` folder contains three Jupyter notebooks, which can be used to analyze the training and performance of the different models by generating plots and display results.
 
 ### Generating Recommendations
 
